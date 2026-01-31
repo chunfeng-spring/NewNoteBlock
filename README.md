@@ -1,7 +1,9 @@
 NewNoteBlock is a Fabric mod designed to raise the ceiling of NoteBlock music, whether using vanilla Minecraft sounds or external custom sounds.
 
 🚀 Features
+
 1. NewNoteBlock GUI
+
 🎹 Basic Properties
 
 Instrument Selection: Category-based selector (e.g., Piano, Bass, Guitar) breaking vanilla limitations.
@@ -33,6 +35,7 @@ Coordinate Modes: Supports both Relative (local to the block) and Absolute (worl
 Trajectory Preview: 3D coordinate system window visualizing the calculated sound path in real-time.
 
 2. WorldEdit GUI
+
 🔍 Filters
 
 Conditional Filtering: Filter blocks within a selection by Instrument Type (e.g., Piano only) or Pitch Range (e.g., C4-C5 only), supporting Intersect/Union/Complement logic.
@@ -54,7 +57,9 @@ Supported Properties: Pitch (semitone transposition), Master Volume, Envelope Sc
 NewNoteBlock 是一个 Fabric 模组，旨在为了提高音符盒音乐的上限，不管是用 Minecraft 原版音色还是外部音色。
 
 🚀 功能特性
+
 一、 NewNoteBlock GUI
+
 🎹 基础属性调节
 
 乐器选择：基于分类的乐器选择器（如 Piano, Bass, Guitar 等），突破原版乐器限制。
@@ -86,6 +91,7 @@ NewNoteBlock 是一个 Fabric 模组，旨在为了提高音符盒音乐的上�
 轨迹预览：提供 3D 坐标系预览窗口，实时绘制计算出的声源运动路径。
 
 二、 WorldEdit GUI
+
 🔍 筛选器 (Filters)
 
 条件筛选：支持根据乐器类型（如仅选中钢琴）或音高范围（如仅选中 C4-C5）来过滤选区内的音符盒，支持交集并集补集的逻辑。
