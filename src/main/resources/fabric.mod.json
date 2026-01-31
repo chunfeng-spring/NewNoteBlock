@@ -1,0 +1,35 @@
+{
+	"schemaVersion": 1,
+	"id": "newnoteblock",
+	"version": "${version}",
+	"name": "NewNoteBlock",
+	"description": "A Fabric Mod that adds NewNoteBlock to Minecraft for creating [NoteBlock Music] with higher limits.",
+	"authors": [
+		"chunfeng-spring"
+	],
+	"contact": {
+		"homepage": "https://fabricmc.net/",
+		"sources": "https://github.com/FabricMC/fabric-example-mod"
+	},
+	"license": "CC0-1.0",
+	"icon": "assets/newnoteblock/icon.png",
+	"environment": "*",
+	"entrypoints": {
+		"main": [
+			"com.chunfeng.newnoteblock.NewNoteBlockMod"
+		],
+		"client": [
+			"com.chunfeng.newnoteblock.NewNoteBlockClient"
+		]
+	},
+	"mixins": [
+		"newnoteblock.mixins.json"
+	],
+	"depends": {
+		"fabricloader": ">=0.16.10",
+		"minecraft": "~1.20.1",
+		"java": ">=17",
+		"fabric-api": "*",
+		"worldedit": ">=7.2.15"
+	}
+}

@@ -1,0 +1,76 @@
+{
+  "variants": {
+    "note=1,powered=false": {
+      "model": "newnoteblock:block/1"
+    },
+    "note=1,powered=true": {
+      "model": "newnoteblock:block/1_on"
+    },
+    "note=2,powered=false": {
+      "model": "newnoteblock:block/2"
+    },
+    "note=2,powered=true": {
+      "model": "newnoteblock:block/2_on"
+    },
+    "note=3,powered=false": {
+      "model": "newnoteblock:block/3"
+    },
+    "note=3,powered=true": {
+      "model": "newnoteblock:block/3_on"
+    },
+    "note=4,powered=false": {
+      "model": "newnoteblock:block/4"
+    },
+    "note=4,powered=true": {
+      "model": "newnoteblock:block/4_on"
+    },
+    "note=5,powered=false": {
+      "model": "newnoteblock:block/5"
+    },
+    "note=5,powered=true": {
+      "model": "newnoteblock:block/5_on"
+    },
+    "note=6,powered=false": {
+      "model": "newnoteblock:block/6"
+    },
+    "note=6,powered=true": {
+      "model": "newnoteblock:block/6_on"
+    },
+    "note=7,powered=false": {
+      "model": "newnoteblock:block/7"
+    },
+    "note=7,powered=true": {
+      "model": "newnoteblock:block/7_on"
+    },
+    "note=8,powered=false": {
+      "model": "newnoteblock:block/8"
+    },
+    "note=8,powered=true": {
+      "model": "newnoteblock:block/8_on"
+    },
+    "note=9,powered=false": {
+      "model": "newnoteblock:block/9"
+    },
+    "note=9,powered=true": {
+      "model": "newnoteblock:block/9_on"
+    },
+    "note=10,powered=false": {
+      "model": "newnoteblock:block/10"
+    },
+    "note=10,powered=true": {
+      "model": "newnoteblock:block/10_on"
+    },
+    "note=11,powered=false": {
+      "model": "newnoteblock:block/11"
+    },
+    "note=11,powered=true": {
+      "model": "newnoteblock:block/11_on"
+    },
+    "note=12,powered=false": {
+      "model": "newnoteblock:block/12"
+    },
+    "note=12,powered=true": {
+      "model": "newnoteblock:block/12_on"
+    }
+  }
+}

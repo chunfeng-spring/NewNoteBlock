@@ -1,0 +1,18 @@
+{
+	"required": true,
+	"package": "com.chunfeng.newnoteblock.mixin",
+	"compatibilityLevel": "JAVA_17",
+	"mixins": [
+		"PlaySoundCommandMixin",
+		"SoundEventMixin",
+		"MixinMinecraftClient",
+		"SourceAccessor",
+		"MixinSoundSystem",
+		"MixinSoundEngine",
+		"MixinFallingBlock"
+	],
+	"client": [],
+	"injectors": {
+		"defaultRequire": 1
+	}
+}
