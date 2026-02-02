@@ -22,13 +22,16 @@ import java.util.concurrent.ConcurrentHashMap;
 public class ClientSoundManager {
     private static final Map<UUID, ModSoundInstance> activeSounds = new ConcurrentHashMap<>();
 
-    // [修改] 接收预计算的 path 数据
+    // 接收预计算的 path 数据 (仅用于传递给可能需要的逻辑，虽然现在位置由服务器驱动)
+    // 但实际上，客户端不再需要计算路径，只需要在 startSound 时设定初始位置即可。
+    // 为了保持接口兼容性，我们保留参数，但在 SoundInstance 中不再使用 path 进行计算。
     public static void startSound(UUID id, BlockPos pos, String instrumentId, int note,
             float initVolume, float initPitchMult,
             int pitchRange,
             float reverbSend, float[] reverbParams,
             float[] eqParams,
-            int startTick, int endTick, boolean motionMode, List<Vec3d> motionPath) { // [新增参数]
+            int startTick, int endTick, boolean motionMode, List<Vec3d> motionPath) {
+
         MinecraftClient client = MinecraftClient.getInstance();
         NoteBlockAudioEngine.ensureInitialized();
 
@@ -50,9 +53,19 @@ public class ClientSoundManager {
 
         ModSoundInstance instance = new ModSoundInstance(
                 event, pos, finalBasePitch, initVolume, initPitchMult,
-                reverbSend, reverbParams, eqParams,
-                startTick, endTick, motionMode, motionPath // 传递 boolean
-        );
+                reverbSend, reverbParams, eqParams);
+
+        // 如果有初始位置(虽然update会马上来，但设置一次更稳妥)
+        if (motionPath != null && !motionPath.isEmpty() && startTick == 0) {
+            Vec3d startPos = motionPath.get(0);
+            if (motionMode) {
+                instance.setPosition(pos.getX() + 0.5 + startPos.x, pos.getY() + 0.5 + startPos.y,
+                        pos.getZ() + 0.5 + startPos.z);
+            } else {
+                instance.setPosition(startPos.x, startPos.y, startPos.z);
+            }
+        }
+
         activeSounds.put(id, instance);
 
         client.execute(() -> {
@@ -60,10 +73,20 @@ public class ClientSoundManager {
         });
     }
 
+    public static void updateSoundState(UUID id, float volume, float pitchMultiplier, double x, double y, double z) {
+        ModSoundInstance instance = activeSounds.get(id);
+        if (instance != null) {
+            instance.updateState(volume, pitchMultiplier);
+            instance.setPosition(x, y, z);
+        }
+    }
+
+    // 保留旧签名以防兼容性问题，转发调用
     public static void updateSoundState(UUID id, float volume, float pitchMultiplier) {
         ModSoundInstance instance = activeSounds.get(id);
-        if (instance != null)
+        if (instance != null) {
             instance.updateState(volume, pitchMultiplier);
+        }
     }
 
     public static void stopSound(UUID id) {
@@ -79,8 +102,6 @@ public class ClientSoundManager {
         return regEvent != null ? regEvent : SoundEvent.of(identifier);
     }
 
-    // ...
-
     public static class ModSoundInstance extends MovingSoundInstance {
         private final float basePitch;
 
@@ -88,23 +109,14 @@ public class ClientSoundManager {
         public final float[] reverbParams;
         public final float[] eqParams;
 
-        // [修改] 存储预计算轨迹
-        private final double originX, originY, originZ;
-        private final int startTick, endTick;
-        private final boolean motionMode; // [新增]
-        private final List<Vec3d> motionPath;
-        private int currentTick = 0;
-
+        // 构造函数移除路径相关参数
         public ModSoundInstance(SoundEvent sound, BlockPos pos, float basePitch, float initVol, float initPitchMult,
-                float reverbSend, float[] reverbParams, float[] eqParams,
-                int start, int end, boolean mMode, List<Vec3d> path) { // [新增包含]
+                float reverbSend, float[] reverbParams, float[] eqParams) {
             super(sound, SoundCategory.RECORDS, Random.create());
-            this.originX = pos.getX() + 0.5;
-            this.originY = pos.getY() + 0.5;
-            this.originZ = pos.getZ() + 0.5;
-            this.x = originX;
-            this.y = originY;
-            this.z = originZ;
+
+            this.x = pos.getX() + 0.5;
+            this.y = pos.getY() + 0.5;
+            this.z = pos.getZ() + 0.5;
 
             this.basePitch = basePitch;
             this.repeat = false;
@@ -112,14 +124,6 @@ public class ClientSoundManager {
             this.reverbSend = reverbSend;
             this.reverbParams = reverbParams != null ? reverbParams.clone() : ReverbDefinition.getDefault();
             this.eqParams = eqParams != null ? eqParams.clone() : FilterDefinition.getDefault();
-
-            this.startTick = start;
-            this.endTick = end;
-            this.motionMode = mMode;
-            this.motionPath = path;
-
-            // [Fix] 立即计算初始位置(Tick 0)，防止第一帧位置错误
-            updateCurrentPosition();
 
             this.updateState(initVol, initPitchMult);
         }
@@ -133,40 +137,16 @@ public class ClientSoundManager {
             this.setDone();
         }
 
-        @Override
-        public void tick() {
-            if (this.isDone())
-                return;
-
-            updateCurrentPosition();
-
-            currentTick++;
+        // 允许外部设置位置
+        public void setPosition(double x, double y, double z) {
+            this.x = x;
+            this.y = y;
+            this.z = z;
         }
 
-        private void updateCurrentPosition() {
-            // [性能优化] 直接查表，无需表达式计算
-            if (motionPath != null && !motionPath.isEmpty() && currentTick >= startTick && currentTick <= endTick) {
-                int index = currentTick - startTick;
-                if (index >= 0 && index < motionPath.size()) {
-                    Vec3d offset = motionPath.get(index);
-                    if (motionMode) {
-                        // 相对坐标
-                        this.x = originX + offset.x;
-                        this.y = originY + offset.y;
-                        this.z = originZ + offset.z;
-                    } else {
-                        // 绝对坐标
-                        this.x = offset.x;
-                        this.y = offset.y;
-                        this.z = offset.z;
-                    }
-                }
-            } else if (currentTick > endTick || currentTick < startTick) {
-                // 定义域外恢复默认位置
-                this.x = originX;
-                this.y = originY;
-                this.z = originZ;
-            }
+        @Override
+        public void tick() {
+            // Tick 逻辑已由服务端驱动更新
         }
     }
 }

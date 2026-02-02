@@ -57,7 +57,7 @@ public class ServerSoundManager {
             }
 
             ActiveSoundFader fader = new ActiveSoundFader(world, pos, uuid, baseVolume, volCurve, pitchCurve,
-                    pitchRange); // [Modified] Pass baseVolume
+                    pitchRange, motionMode, motionPath, startTick, endTick); // [Modified] Pass motion params
             activeSounds.put(uuid, fader);
         }
 

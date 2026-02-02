@@ -139,7 +139,11 @@ public class NotePacketHandler {
                     UUID id = buf.readUuid();
                     float volume = buf.readFloat();
                     float pitchMultiplier = buf.readFloat();
-                    client.execute(() -> ClientSoundManager.updateSoundState(id, volume, pitchMultiplier));
+                    // [新增] 读取位置更新
+                    double x = buf.readDouble();
+                    double y = buf.readDouble();
+                    double z = buf.readDouble();
+                    client.execute(() -> ClientSoundManager.updateSoundState(id, volume, pitchMultiplier, x, y, z));
                 });
 
         ClientPlayNetworking.registerGlobalReceiver(STOP_SOUND_PACKET, (client, handler, buf, responseSender) -> {
@@ -193,11 +197,16 @@ public class NotePacketHandler {
 
     // ... (sendUpdateSoundState 和 sendStopSound 保持不变)
     public static void sendUpdateSoundState(UUID uuid, float volume, float pitchMultiplier, ServerWorld world,
-            BlockPos pos) {
+            BlockPos pos, double x, double y, double z) { // [Modified] Added x, y, z
         PacketByteBuf buf = PacketByteBufs.create();
         buf.writeUuid(uuid);
         buf.writeFloat(volume);
         buf.writeFloat(pitchMultiplier);
+        // [新增] 写入位置更新
+        buf.writeDouble(x);
+        buf.writeDouble(y);
+        buf.writeDouble(z);
+
         world.getPlayers(p -> p.squaredDistanceTo(pos.toCenterPos()) < 64 * 64)
                 .forEach(player -> ServerPlayNetworking.send(player, UPDATE_SOUND_STATE_PACKET, buf));
     }
