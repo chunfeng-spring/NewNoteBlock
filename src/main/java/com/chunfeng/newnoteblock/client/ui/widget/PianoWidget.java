@@ -151,20 +151,21 @@ public class PianoWidget {
         UUID soundId = UUID.randomUUID();
         activePreviewSounds.add(soundId);
 
-        ClientSoundManager.startSound(
+        ClientSoundManager.startSoundWithEnvelope(
                 soundId,
                 soundPos,
                 data.instrument,
                 data.note,
-                1.0f,
-                1.0f,
+                data.volume.get(), // 主音量
+                data.volumeCurve, // 音量曲线
+                data.pitchCurve, // 音高曲线
                 data.pitchRange.get(),
                 data.reverbSend[0],
                 data.reverbParams,
                 data.eqParams,
                 startTick,
                 endTick,
-                data.motionMode.get(), // [新增]
+                data.motionMode.get(),
                 previewPath);
         AudioAnalyzer.updateSpectrumAsync(data.instrument, data.note, data.pitchRange.get());
     }
