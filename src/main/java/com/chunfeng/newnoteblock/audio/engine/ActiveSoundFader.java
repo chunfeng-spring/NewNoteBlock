@@ -54,14 +54,22 @@ public class ActiveSoundFader {
     }
 
     public boolean tick() {
-        if (volumeCurve == null || currentTick >= volumeCurve.size()) {
+        // [修复] 计算结束条件：基于音量曲线和运动路径的最大持续时间
+        boolean volumeEnded = (volumeCurve == null || volumeCurve.isEmpty()) ? true : currentTick >= volumeCurve.size();
+        boolean motionEnded = (motionPath == null || motionPath.isEmpty()) ? true : currentTick > endTick;
+
+        // 如果两者都结束了，返回 true
+        if (volumeEnded && motionEnded) {
             isFinished = true;
             return true;
         }
 
-        // 1. 计算音量
-        int volRaw = volumeCurve.get(currentTick);
-        float volume = (volRaw / 100.0f) * baseVolume;
+        // 1. 计算音量 (如果有音量曲线)
+        float volume = baseVolume;
+        if (volumeCurve != null && !volumeCurve.isEmpty() && currentTick < volumeCurve.size()) {
+            int volRaw = volumeCurve.get(currentTick);
+            volume = (volRaw / 100.0f) * baseVolume;
+        }
 
         // 2. 计算音高倍率
         int pitchRaw = 0;
@@ -71,7 +79,7 @@ public class ActiveSoundFader {
         double semitones = pitchRaw / 100.0;
         float pitchMultiplier = (float) Math.pow(2.0, semitones / 12.0);
 
-        // 3. 计算当前位置 [新增]
+        // 3. 计算当前位置
         double currentX = originX;
         double currentY = originY;
         double currentZ = originZ;
@@ -92,7 +100,7 @@ public class ActiveSoundFader {
             }
         }
 
-        // 4. 发送更新包 [Modified] 发送包含位置的更新包
+        // 4. 发送更新包
         NotePacketHandler.sendUpdateSoundState(uuid, volume, pitchMultiplier, world, pos, currentX, currentY, currentZ);
 
         currentTick++;

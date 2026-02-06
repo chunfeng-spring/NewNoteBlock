@@ -112,34 +112,16 @@ public class PianoWidget {
     }
 
     private static void playPreviewSound(NoteData data) {
-        List<Vec3d> previewPath = new ArrayList<>();
         int startTick = data.motionStartTick.get();
         int endTick = data.motionEndTick.get();
 
+        List<Vec3d> previewPath = new ArrayList<>();
         if (startTick <= endTick && (endTick - startTick) <= 2000) {
-            try {
-                String strX = data.motionExpX.get();
-                String strY = data.motionExpY.get();
-                String strZ = data.motionExpZ.get();
-
-                Expression exprX = (strX != null && !strX.trim().isEmpty())
-                        ? new ExpressionBuilder(strX).variable("t").build()
-                        : null;
-                Expression exprY = (strY != null && !strY.trim().isEmpty())
-                        ? new ExpressionBuilder(strY).variable("t").build()
-                        : null;
-                Expression exprZ = (strZ != null && !strZ.trim().isEmpty())
-                        ? new ExpressionBuilder(strZ).variable("t").build()
-                        : null;
-
-                for (int t = startTick; t <= endTick; t++) {
-                    double x = (exprX != null) ? exprX.setVariable("t", t).evaluate() : 0;
-                    double y = (exprY != null) ? exprY.setVariable("t", t).evaluate() : 0;
-                    double z = (exprZ != null) ? exprZ.setVariable("t", t).evaluate() : 0;
-                    previewPath.add(new Vec3d(x, y, z));
-                }
-            } catch (Exception ignored) {
-            }
+            previewPath = com.chunfeng.newnoteblock.util.MotionCalculator.calculate(
+                    data.motionExpX.get(),
+                    data.motionExpY.get(),
+                    data.motionExpZ.get(),
+                    startTick, endTick);
         }
 
         BlockPos soundPos = BlockPos.ORIGIN;

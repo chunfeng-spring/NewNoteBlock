@@ -42,22 +42,27 @@ public class ServerSoundManager {
 
         UUID uuid = UUID.randomUUID();
 
-        boolean isStaticPlay = (volCurve == null || volCurve.isEmpty());
+        boolean hasEnvelope = (volCurve != null && !volCurve.isEmpty());
+        // [修复] 即使没有音量曲线，只要有运动路径也需要创建 Fader
+        boolean hasMotion = (motionPath != null && !motionPath.isEmpty());
 
-        float initVol = baseVolume; // [Modified] Use baseVolume
+        float initVol = baseVolume;
         float initPitchMult = 1.0f;
 
-        if (!isStaticPlay) {
-            initVol = (volCurve.get(0) / 100.0f) * baseVolume; // [Modified] Apply baseVolume
+        if (hasEnvelope) {
+            initVol = (volCurve.get(0) / 100.0f) * baseVolume;
 
             if (pitchCurve != null && !pitchCurve.isEmpty()) {
                 int pVal = pitchCurve.get(0);
                 double semitones = pVal / 100.0;
                 initPitchMult = (float) Math.pow(2.0, semitones / 12.0);
             }
+        }
 
+        // [修复] 如果有音量包络或运动路径，都需要创建 Fader
+        if (hasEnvelope || hasMotion) {
             ActiveSoundFader fader = new ActiveSoundFader(world, pos, uuid, baseVolume, volCurve, pitchCurve,
-                    pitchRange, motionMode, motionPath, startTick, endTick); // [Modified] Pass motion params
+                    pitchRange, motionMode, motionPath, startTick, endTick);
             activeSounds.put(uuid, fader);
         }
 

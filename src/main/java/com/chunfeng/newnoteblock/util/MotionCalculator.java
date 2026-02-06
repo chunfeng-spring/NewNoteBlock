@@ -9,35 +9,49 @@ import java.util.List;
 
 public class MotionCalculator {
 
-    public static List<Vec3d> calculate(String expXStr, String expYStr, String expZStr, int startTick, int endTick)
-            throws Exception {
+    /**
+     * 计算运动轨迹路径
+     * 
+     * @param expXStr   X 轴表达式（可为 null 或空，将返回 0）
+     * @param expYStr   Y 轴表达式（可为 null 或空，将返回 0）
+     * @param expZStr   Z 轴表达式（可为 null 或空，将返回 0）
+     * @param startTick 起始 tick
+     * @param endTick   结束 tick
+     * @return 轨迹点列表，每个 tick 一个点
+     */
+    public static List<Vec3d> calculate(String expXStr, String expYStr, String expZStr, int startTick, int endTick) {
         List<Vec3d> path = new ArrayList<>();
 
         if (startTick > endTick) {
-            throw new IllegalArgumentException("起始 Tick 不能大于终止 Tick");
+            return path; // 返回空列表而不是抛异常
         }
 
-        Expression expX = new ExpressionBuilder(expXStr).variable("t").build();
-        Expression expY = new ExpressionBuilder(expYStr).variable("t").build();
-        Expression expZ = new ExpressionBuilder(expZStr).variable("t").build();
+        try {
+            // 安全处理空表达式
+            Expression expX = isValidExpression(expXStr)
+                    ? new ExpressionBuilder(expXStr).variable("t").build()
+                    : null;
+            Expression expY = isValidExpression(expYStr)
+                    ? new ExpressionBuilder(expYStr).variable("t").build()
+                    : null;
+            Expression expZ = isValidExpression(expZStr)
+                    ? new ExpressionBuilder(expZStr).variable("t").build()
+                    : null;
 
-        for (int t = startTick; t <= endTick; t++) {
-            for (float subT = 0; subT < 1.0f; subT += 0.2f) {
-                double time = t + subT;
-                if (time > endTick)
-                    break;
-
-                expX.setVariable("t", time);
-                expY.setVariable("t", time);
-                expZ.setVariable("t", time);
-
-                double x = expX.evaluate();
-                double y = expY.evaluate();
-                double z = expZ.evaluate();
-
+            for (int t = startTick; t <= endTick; t++) {
+                double x = (expX != null) ? expX.setVariable("t", t).evaluate() : 0;
+                double y = (expY != null) ? expY.setVariable("t", t).evaluate() : 0;
+                double z = (expZ != null) ? expZ.setVariable("t", t).evaluate() : 0;
                 path.add(new Vec3d(x, y, z));
             }
+        } catch (Exception e) {
+            // 解析失败时返回空列表
+            path.clear();
         }
         return path;
+    }
+
+    private static boolean isValidExpression(String expr) {
+        return expr != null && !expr.trim().isEmpty();
     }
 }

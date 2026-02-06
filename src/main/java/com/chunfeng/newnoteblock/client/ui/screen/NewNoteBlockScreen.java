@@ -99,6 +99,54 @@ public class NewNoteBlockScreen {
         }
     }
 
+    // [新增] 使用服务端同步的数据直接打开 GUI，解决 WorldEdit 选区导致数据不同步的问题
+    public static void openWithSyncedData(BlockPos pos, int note, String instrument, float volume,
+            java.util.List<Integer> volCurve, java.util.List<Integer> pitchCurve,
+            int pitchRange, int delay, float reverbSend, float[] rParams, float[] eParams,
+            String expX, String expY, String expZ, int startTick, int endTick, boolean motionMode) {
+
+        currentPos = pos;
+        isOpen = true;
+
+        // 使用服务端同步的数据填充
+        noteData.resetToDefault();
+        noteData.note = note;
+        noteData.instrument = instrument != null ? instrument : "harp";
+        noteData.volume.set(volume);
+
+        noteData.volumeCurve.clear();
+        if (volCurve != null)
+            noteData.volumeCurve.addAll(volCurve);
+
+        noteData.pitchCurve.clear();
+        if (pitchCurve != null)
+            noteData.pitchCurve.addAll(pitchCurve);
+
+        noteData.tickCount.set(noteData.volumeCurve.size());
+        noteData.pitchRange.set(pitchRange);
+        noteData.delay.set(delay);
+
+        noteData.reverbSend[0] = reverbSend;
+        if (rParams != null && rParams.length == ReverbDefinition.PARAM_COUNT) {
+            System.arraycopy(rParams, 0, noteData.reverbParams, 0, ReverbDefinition.PARAM_COUNT);
+        }
+        noteData.currentPresetIndex.set(-1);
+
+        if (eParams != null && eParams.length == FilterDefinition.PARAM_COUNT) {
+            System.arraycopy(eParams, 0, noteData.eqParams, 0, FilterDefinition.PARAM_COUNT);
+        }
+
+        noteData.motionExpX.set(expX != null ? expX : "0");
+        noteData.motionExpY.set(expY != null ? expY : "0");
+        noteData.motionExpZ.set(expZ != null ? expZ : "0");
+        noteData.motionStartTick.set(startTick);
+        noteData.motionEndTick.set(endTick);
+        noteData.motionMode.set(motionMode);
+
+        // 初始化 UI 状态
+        syncUIFromInstrument(noteData);
+    }
+
     public static void close() {
         if (isOpen && currentPos != null) {
             safeSendPacket();
@@ -162,50 +210,13 @@ public class NewNoteBlockScreen {
     }
 
     private static List<Vec3d> calculateMotionPath() {
-        List<Vec3d> path = new ArrayList<>();
         int start = noteData.motionStartTick.get();
         int end = noteData.motionEndTick.get();
-
-        if (start > end)
-            return path;
-
-        try {
-            String strX = noteData.motionExpX.get();
-            String strY = noteData.motionExpY.get();
-            String strZ = noteData.motionExpZ.get();
-
-            Expression exprX = (strX != null && !strX.trim().isEmpty())
-                    ? new ExpressionBuilder(strX).variable("t").build()
-                    : null;
-            Expression exprY = (strY != null && !strY.trim().isEmpty())
-                    ? new ExpressionBuilder(strY).variable("t").build()
-                    : null;
-            Expression exprZ = (strZ != null && !strZ.trim().isEmpty())
-                    ? new ExpressionBuilder(strZ).variable("t").build()
-                    : null;
-
-            for (int t = start; t <= end; t++) {
-                double x = 0;
-                double y = 0;
-                double z = 0;
-                if (exprX != null) {
-                    exprX.setVariable("t", t);
-                    x = exprX.evaluate();
-                }
-                if (exprY != null) {
-                    exprY.setVariable("t", t);
-                    y = exprY.evaluate();
-                }
-                if (exprZ != null) {
-                    exprZ.setVariable("t", t);
-                    z = exprZ.evaluate();
-                }
-                path.add(new Vec3d(x, y, z));
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-        return path;
+        return com.chunfeng.newnoteblock.util.MotionCalculator.calculate(
+                noteData.motionExpX.get(),
+                noteData.motionExpY.get(),
+                noteData.motionExpZ.get(),
+                start, end);
     }
 
     public static void render() {

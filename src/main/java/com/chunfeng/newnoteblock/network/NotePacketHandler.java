@@ -28,6 +28,9 @@ public class NotePacketHandler {
     public static final Identifier UPDATE_SOUND_STATE_PACKET = new Identifier(NewNoteBlockMod.MOD_ID,
             "update_sound_state");
     public static final Identifier STOP_SOUND_PACKET = new Identifier(NewNoteBlockMod.MOD_ID, "stop_sound");
+    // [新增] 用于请求和接收 BlockEntity 同步数据
+    public static final Identifier REQUEST_SYNC_PACKET = new Identifier(NewNoteBlockMod.MOD_ID, "request_sync");
+    public static final Identifier SYNC_RESPONSE_PACKET = new Identifier(NewNoteBlockMod.MOD_ID, "sync_response");
 
     public static void registerServerPackets() {
         ServerPlayNetworking.registerGlobalReceiver(UPDATE_NOTE_PACKET,
@@ -93,6 +96,20 @@ public class NotePacketHandler {
                         }
                     });
                 });
+
+        // [新增] 服务端处理 BlockEntity 同步请求
+        ServerPlayNetworking.registerGlobalReceiver(REQUEST_SYNC_PACKET,
+                (server, player, handler, buf, responseSender) -> {
+                    BlockPos pos = buf.readBlockPos();
+                    server.execute(() -> {
+                        if (player.getWorld() != null && player.getWorld().isChunkLoaded(pos)) {
+                            BlockEntity be = player.getWorld().getBlockEntity(pos);
+                            if (be instanceof NewNoteBlockEntity noteBe) {
+                                sendSyncResponse((net.minecraft.server.network.ServerPlayerEntity) player, pos, noteBe);
+                            }
+                        }
+                    });
+                });
     }
 
     public static void registerClientPackets() {
@@ -149,6 +166,50 @@ public class NotePacketHandler {
         ClientPlayNetworking.registerGlobalReceiver(STOP_SOUND_PACKET, (client, handler, buf, responseSender) -> {
             UUID id = buf.readUuid();
             client.execute(() -> ClientSoundManager.stopSound(id));
+        });
+
+        // [新增] 客户端接收 BlockEntity 同步响应
+        ClientPlayNetworking.registerGlobalReceiver(SYNC_RESPONSE_PACKET, (client, handler, buf, responseSender) -> {
+            BlockPos pos = buf.readBlockPos();
+            int note = buf.readInt();
+            String instrument = buf.readString();
+            float volume = buf.readFloat();
+
+            int volSize = buf.readInt();
+            List<Integer> volCurve = new ArrayList<>();
+            for (int i = 0; i < volSize; i++)
+                volCurve.add(buf.readInt());
+
+            int pitchSize = buf.readInt();
+            List<Integer> pitchCurve = new ArrayList<>();
+            for (int i = 0; i < pitchSize; i++)
+                pitchCurve.add(buf.readInt());
+
+            int pitchRange = buf.readInt();
+            int delay = buf.readInt();
+
+            float reverbSend = buf.readFloat();
+            float[] rParams = new float[ReverbDefinition.PARAM_COUNT];
+            for (int i = 0; i < rParams.length; i++)
+                rParams[i] = buf.readFloat();
+
+            float[] eParams = new float[FilterDefinition.PARAM_COUNT];
+            for (int i = 0; i < eParams.length; i++)
+                eParams[i] = buf.readFloat();
+
+            String expX = buf.readString();
+            String expY = buf.readString();
+            String expZ = buf.readString();
+            int startTick = buf.readInt();
+            int endTick = buf.readInt();
+            boolean motionMode = buf.readBoolean();
+
+            client.execute(() -> {
+                // 直接使用服务端数据打开 GUI
+                com.chunfeng.newnoteblock.client.ui.screen.NewNoteBlockScreen.openWithSyncedData(
+                        pos, note, instrument, volume, volCurve, pitchCurve, pitchRange, delay,
+                        reverbSend, rParams, eParams, expX, expY, expZ, startTick, endTick, motionMode);
+            });
         });
     }
 
@@ -216,5 +277,54 @@ public class NotePacketHandler {
         buf.writeUuid(uuid);
         world.getPlayers(p -> p.squaredDistanceTo(pos.toCenterPos()) < 64 * 64)
                 .forEach(player -> ServerPlayNetworking.send(player, STOP_SOUND_PACKET, buf));
+    }
+
+    // [新增] 服务端发送 BlockEntity 同步响应到客户端
+    public static void sendSyncResponse(ServerPlayerEntity player, BlockPos pos, NewNoteBlockEntity noteBe) {
+        PacketByteBuf buf = PacketByteBufs.create();
+        buf.writeBlockPos(pos);
+        buf.writeInt(noteBe.getNote());
+        buf.writeString(noteBe.getInstrument() != null ? noteBe.getInstrument() : "harp");
+        buf.writeFloat(noteBe.getVolume());
+
+        buf.writeInt(noteBe.getVolumeCurve().size());
+        for (Integer val : noteBe.getVolumeCurve())
+            buf.writeInt(val);
+
+        buf.writeInt(noteBe.getPitchCurve().size());
+        for (Integer val : noteBe.getPitchCurve())
+            buf.writeInt(val);
+
+        buf.writeInt(noteBe.getPitchRange());
+        buf.writeInt(noteBe.getDelay());
+
+        buf.writeFloat(noteBe.getReverbSend());
+        float[] rParams = noteBe.getReverbParams();
+        if (rParams == null || rParams.length < ReverbDefinition.PARAM_COUNT)
+            rParams = ReverbDefinition.getDefault();
+        for (float p : rParams)
+            buf.writeFloat(p);
+
+        float[] eParams = noteBe.getEqParams();
+        if (eParams == null || eParams.length < FilterDefinition.PARAM_COUNT)
+            eParams = FilterDefinition.getDefault();
+        for (float p : eParams)
+            buf.writeFloat(p);
+
+        buf.writeString(noteBe.getMotionExpX() != null ? noteBe.getMotionExpX() : "0");
+        buf.writeString(noteBe.getMotionExpY() != null ? noteBe.getMotionExpY() : "0");
+        buf.writeString(noteBe.getMotionExpZ() != null ? noteBe.getMotionExpZ() : "0");
+        buf.writeInt(noteBe.getMotionStartTick());
+        buf.writeInt(noteBe.getMotionEndTick());
+        buf.writeBoolean(noteBe.getMotionMode());
+
+        ServerPlayNetworking.send(player, SYNC_RESPONSE_PACKET, buf);
+    }
+
+    // [新增] 客户端发送 BlockEntity 同步请求到服务端
+    public static void requestSync(BlockPos pos) {
+        PacketByteBuf buf = PacketByteBufs.create();
+        buf.writeBlockPos(pos);
+        ClientPlayNetworking.send(REQUEST_SYNC_PACKET, buf);
     }
 }

@@ -94,12 +94,22 @@ public class NewNoteBlock {
                 return ActionResult.PASS;
             }
 
+            // [新增] 如果玩家手持木斧（WorldEdit 选区工具），不打开 GUI，让 WorldEdit 处理
+            net.minecraft.item.ItemStack heldItem = player.getStackInHand(hand);
+            if (heldItem.isOf(net.minecraft.item.Items.WOODEN_AXE)) {
+                return ActionResult.PASS;
+            }
+
             if (world.isClient) {
+                // [修复] 先发送同步请求到服务端，等服务端返回数据后再打开 GUI
+                // 这解决了 WorldEdit 选区导致客户端 BlockEntity 数据不同步的问题
+                com.chunfeng.newnoteblock.network.NotePacketHandler.requestSync(pos);
+
                 MinecraftClient.getInstance().setScreen(new Screen(Text.of("Note Block Editor")) {
                     @Override
                     protected void init() {
-                        // 手动调用 ImGui 的打开逻辑
-                        NewNoteBlockScreen.openNoteBlockUI(pos);
+                        // 不再在这里直接读取客户端 BlockEntity 数据
+                        // 数据会通过网络包从服务端同步过来，并由 openWithSyncedData 处理
                     }
 
                     @Override

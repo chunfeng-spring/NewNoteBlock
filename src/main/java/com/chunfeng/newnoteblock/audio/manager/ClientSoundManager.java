@@ -186,6 +186,8 @@ public class ClientSoundManager {
         float initPitchMult = 1.0f;
 
         boolean hasEnvelope = (volumeCurve != null && !volumeCurve.isEmpty());
+        // [修复] 即使没有音量曲线，只要有运动路径也需要创建 Fader
+        boolean hasMotion = (motionPath != null && !motionPath.isEmpty());
 
         if (hasEnvelope) {
             initVol = (volumeCurve.get(0) / 100.0f) * baseVolume;
@@ -202,7 +204,7 @@ public class ClientSoundManager {
                 reverbSend, reverbParams, eqParams);
 
         // 如果有初始位置
-        if (motionPath != null && !motionPath.isEmpty() && startTick == 0) {
+        if (hasMotion && startTick == 0) {
             Vec3d startPos = motionPath.get(0);
             if (motionMode) {
                 instance.setPosition(pos.getX() + 0.5 + startPos.x, pos.getY() + 0.5 + startPos.y,
@@ -214,8 +216,8 @@ public class ClientSoundManager {
 
         activeSounds.put(id, instance);
 
-        // 如果有音量包络，创建客户端淡入淡出器
-        if (hasEnvelope) {
+        // [修复] 如果有音量包络或运动路径，都需要创建 Fader
+        if (hasEnvelope || hasMotion) {
             ClientSoundFader fader = new ClientSoundFader(
                     id, pos, baseVolume, volumeCurve, pitchCurve,
                     pitchRange, motionMode, motionPath, startTick, endTick);
@@ -331,13 +333,22 @@ public class ClientSoundManager {
          * @return 如果声音应该结束返回true
          */
         public boolean tick() {
-            if (volumeCurve == null || currentTick >= volumeCurve.size()) {
+            // [修复] 计算结束条件：基于音量曲线和运动路径的最大持续时间
+            boolean volumeEnded = (volumeCurve == null || volumeCurve.isEmpty()) ? true
+                    : currentTick >= volumeCurve.size();
+            boolean motionEnded = (motionPath == null || motionPath.isEmpty()) ? true : currentTick > endTick;
+
+            // 如果两者都结束了，返回 true
+            if (volumeEnded && motionEnded) {
                 return true;
             }
 
-            // 1. 计算音量
-            int volRaw = volumeCurve.get(currentTick);
-            float volume = (volRaw / 100.0f) * baseVolume;
+            // 1. 计算音量 (如果有音量曲线)
+            float volume = baseVolume;
+            if (volumeCurve != null && !volumeCurve.isEmpty() && currentTick < volumeCurve.size()) {
+                int volRaw = volumeCurve.get(currentTick);
+                volume = (volRaw / 100.0f) * baseVolume;
+            }
 
             // 2. 计算音高倍率
             int pitchRaw = 0;
