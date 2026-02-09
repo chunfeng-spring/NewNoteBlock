@@ -205,6 +205,10 @@ public class NotePacketHandler {
             boolean motionMode = buf.readBoolean();
 
             client.execute(() -> {
+                // [新增] 如果正在 Replay 回放中，不打开 GUI
+                if (com.chunfeng.newnoteblock.util.ReplayModCompat.isInReplay()) {
+                    return;
+                }
                 // 直接使用服务端数据打开 GUI
                 com.chunfeng.newnoteblock.client.ui.screen.NewNoteBlockScreen.openWithSyncedData(
                         pos, note, instrument, volume, volCurve, pitchCurve, pitchRange, delay,

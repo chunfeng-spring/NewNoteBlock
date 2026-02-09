@@ -281,7 +281,13 @@ public class WEPacketHandler {
     public static void registerClientPackets() {
         ClientPlayNetworking.registerGlobalReceiver(WE_OPEN_GUI_PACKET, (client, handler, buf, responseSender) -> {
             long selectionVolume = buf.readLong();
-            client.execute(() -> WorldEditScreen.open(selectionVolume));
+            client.execute(() -> {
+                // [新增] 如果正在 Replay 回放中，不打开 GUI
+                if (com.chunfeng.newnoteblock.util.ReplayModCompat.isInReplay()) {
+                    return;
+                }
+                WorldEditScreen.open(selectionVolume);
+            });
         });
     }
 
