@@ -6,7 +6,8 @@ package com.chunfeng.newnoteblock.client.ui.framework;
  */
 public final class GlyphRanges {
 
-    private GlyphRanges() {}
+    private GlyphRanges() {
+    }
 
     // ============================================================
     // 终极全能范围 (ASCII + 中文)
@@ -24,12 +25,12 @@ public final class GlyphRanges {
             0x3000, 0x30FF, // CJK Symbols and Punctuation
 
             // --- 4. 半角/全角形式 ---
-            (short)0xFF00, (short)0xFFEF,
+            (short) 0xFF00, (short) 0xFFEF,
 
             // --- 5. 简体中文 (拆分范围以适应 Java short) ---
             // 范围: 0x4E00 - 0x9FAF (约2万汉字)
-            0x4E00, 0x7FFF,         // Part 1: 正数区
-            (short)0x8000, (short)0x9FAF, // Part 2: 负数区
+            0x4E00, 0x7FFF, // Part 1: 正数区
+            (short) 0x8000, (short) 0x9FAF, // Part 2: 负数区
 
             // --- 6. 结束标志 ---
             0

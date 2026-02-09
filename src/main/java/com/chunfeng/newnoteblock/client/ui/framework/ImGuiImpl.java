@@ -1,5 +1,6 @@
 package com.chunfeng.newnoteblock.client.ui.framework;
 
+import com.chunfeng.newnoteblock.client.ui.data.WorldEditData;
 import com.chunfeng.newnoteblock.client.ui.screen.NewNoteBlockScreen;
 import com.chunfeng.newnoteblock.client.ui.screen.WorldEditScreen;
 import imgui.ImFont;
@@ -11,6 +12,11 @@ import imgui.gl3.ImGuiImplGl3;
 import imgui.glfw.ImGuiImplGlfw;
 import org.apache.commons.compress.utils.IOUtils;
 import org.lwjgl.glfw.GLFW;
+import org.lwjgl.glfw.GLFWCharCallback;
+import org.lwjgl.glfw.GLFWCursorPosCallback;
+import org.lwjgl.glfw.GLFWKeyCallback;
+import org.lwjgl.glfw.GLFWMouseButtonCallback;
+import org.lwjgl.glfw.GLFWScrollCallback;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -32,11 +38,94 @@ public class ImGuiImpl {
     // [关键修复] 持有 GlyphRanges 的强引用，防止被 JVM 垃圾回收导致 C++ 端访问野指针
     private static short[] sharedGlyphRanges;
 
+    // [修复 Replay 兼容性] 保存原始回调的引用，确保事件链正确传递
+    private static GLFWKeyCallback previousKeyCallback;
+    private static GLFWCharCallback previousCharCallback;
+    private static GLFWMouseButtonCallback previousMouseButtonCallback;
+    private static GLFWScrollCallback previousScrollCallback;
+    private static GLFWCursorPosCallback previousCursorPosCallback;
+
     public static void create(long windowId) {
         if (INSTANCE == null) {
             INSTANCE = new ImGuiImpl();
             INSTANCE.init(windowId);
         }
+    }
+
+    /**
+     * [修复 Replay 兼容性] 判断是否应该将输入事件转发给 ImGui
+     * 只有当 NewNoteBlock 或 WorldEdit GUI 打开时才转发
+     */
+    private static boolean shouldForwardToImGui() {
+        return NewNoteBlockScreen.isOpen || WorldEditData.isOpen;
+    }
+
+    /**
+     * [修复 Replay 兼容性] 安装自定义的 GLFW 输入回调
+     * 仅当 ImGui GUI 打开时才转发事件，避免干扰 Replay 等其他模组
+     */
+    private void installCustomCallbacks(long windowId) {
+        // 保存现有的回调引用（Minecraft 或其他模组可能已经设置了回调）
+        previousKeyCallback = GLFW.glfwSetKeyCallback(windowId, null);
+        previousCharCallback = GLFW.glfwSetCharCallback(windowId, null);
+        previousMouseButtonCallback = GLFW.glfwSetMouseButtonCallback(windowId, null);
+        previousScrollCallback = GLFW.glfwSetScrollCallback(windowId, null);
+        previousCursorPosCallback = GLFW.glfwSetCursorPosCallback(windowId, null);
+
+        // 键盘按键回调
+        GLFW.glfwSetKeyCallback(windowId, (window, key, scancode, action, mods) -> {
+            // 仅当有 ImGui 界面打开时，才转发给 ImGui
+            if (shouldForwardToImGui()) {
+                imGuiGlfw.keyCallback(window, key, scancode, action, mods);
+            }
+            // 始终调用原始回调，确保事件链不中断
+            if (previousKeyCallback != null) {
+                previousKeyCallback.invoke(window, key, scancode, action, mods);
+            }
+        });
+
+        // 字符输入回调
+        GLFW.glfwSetCharCallback(windowId, (window, codepoint) -> {
+            if (shouldForwardToImGui()) {
+                imGuiGlfw.charCallback(window, codepoint);
+            }
+            if (previousCharCallback != null) {
+                previousCharCallback.invoke(window, codepoint);
+            }
+        });
+
+        // 鼠标按钮回调
+        GLFW.glfwSetMouseButtonCallback(windowId, (window, button, action, mods) -> {
+            if (shouldForwardToImGui()) {
+                imGuiGlfw.mouseButtonCallback(window, button, action, mods);
+            }
+            if (previousMouseButtonCallback != null) {
+                previousMouseButtonCallback.invoke(window, button, action, mods);
+            }
+        });
+
+        // 鼠标滚轮回调
+        GLFW.glfwSetScrollCallback(windowId, (window, xOffset, yOffset) -> {
+            if (shouldForwardToImGui()) {
+                imGuiGlfw.scrollCallback(window, xOffset, yOffset);
+            }
+            if (previousScrollCallback != null) {
+                previousScrollCallback.invoke(window, xOffset, yOffset);
+            }
+        });
+
+        // 鼠标位置回调
+        // 注意：ImGuiImplGlfw 没有公开的 cursorPosCallback 方法
+        // 鼠标位置会在 newFrame() 时通过 glfwGetCursorPos() 自动获取
+        // 我们只需要确保原始回调链不被中断
+        GLFW.glfwSetCursorPosCallback(windowId, (window, xpos, ypos) -> {
+            // 不需要转发给 ImGui，它会自己获取鼠标位置
+            if (previousCursorPosCallback != null) {
+                previousCursorPosCallback.invoke(window, xpos, ypos);
+            }
+        });
+
+        System.out.println("NewNoteBlock: 已安装自定义输入回调 (Replay 兼容模式)");
     }
 
     private void init(long windowId) {
@@ -76,7 +165,7 @@ public class ImGuiImpl {
             // [关键修复] 显式触发一次构建，确保图集生成成功，如有问题会立即抛出
             io.getFonts().build();
 
-            System.out.println("NewNoteBlock: 字体加载完成 (Title字体已优化, Texture Size: 8192)");
+            System.out.println("NewNoteBlock: 字体加载完成 (Title字体已优化, Texture Size: 4096)");
         } catch (Exception e) {
             System.err.println("NewNoteBlock: 字体加载失败，回退默认。Error: " + e.getMessage());
             e.printStackTrace();
@@ -91,8 +180,13 @@ public class ImGuiImpl {
             config.destroy();
         }
 
-        imGuiGlfw.init(windowId, true);
+        // [修复 Replay 兼容性] 禁用 ImGui 的自动回调安装，改为手动管理
+        // 这可以防止 ImGui 拦截所有键盘事件，避免在 Replay 回放时意外触发 GUI
+        imGuiGlfw.init(windowId, false);
         imGuiGl3.init("#version 150");
+
+        // [修复 Replay 兼容性] 安装自定义输入回调
+        installCustomCallbacks(windowId);
 
         isInitialized = true;
     }
