@@ -100,6 +100,11 @@ public class NewNoteBlock {
                 return ActionResult.PASS;
             }
 
+            // [新增] 如果玩家手持新音符盒，不打开 GUI，方便放置方块
+            if (heldItem.isOf(NEWNOTEBLOCK.asItem())) {
+                return ActionResult.PASS;
+            }
+
             if (world.isClient) {
                 // [修复] 先发送同步请求到服务端，等服务端返回数据后再打开 GUI
                 // 这解决了 WorldEdit 选区导致客户端 BlockEntity 数据不同步的问题

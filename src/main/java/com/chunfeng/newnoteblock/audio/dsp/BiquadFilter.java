@@ -24,24 +24,27 @@ public class BiquadFilter {
     public void reset() {
         x1 = x2 = y1 = y2 = 0;
         // 默认直通 (b0=1, 其余0)
-        b0 = 1; a0 = 1;
+        b0 = 1;
+        a0 = 1;
         b1 = b2 = a1 = a2 = 0;
     }
 
     /**
      * 计算滤波器系数
-     * @param type 滤波器类型
+     * 
+     * @param type       滤波器类型
      * @param sampleRate 采样率 (Hz)
-     * @param freq 中心频率/截止频率 (Hz)
-     * @param Q 品质因子/斜率 (通常 0.1 ~ 10.0, Shelf滤波器常用 0.707)
-     * @param gainDB 增益 (dB)
+     * @param freq       中心频率/截止频率 (Hz)
+     * @param Q          品质因子/斜率 (通常 0.1 ~ 10.0, Shelf滤波器常用 0.707)
+     * @param gainDB     增益 (dB)
      */
     public void calculateCoefficients(Type type, float sampleRate, float freq, float Q, float gainDB) {
         float w0 = (float) (2 * Math.PI * freq / sampleRate);
         float cosW0 = (float) Math.cos(w0);
         float sinW0 = (float) Math.sin(w0);
         float alpha = sinW0 / (2 * Q);
-        float A = (float) Math.pow(10, gainDB / 40.0); // Shelf EQ 的 A 计算不同，这里是通用近似
+        // Shelf 用 dB/20, Peaking 用 dB/40 (RBJ Audio EQ Cookbook)
+        float A = (float) Math.pow(10, gainDB / (type == Type.PEAKING_EQ ? 40.0 : 20.0));
 
         switch (type) {
             case LOW_SHELF:
@@ -85,6 +88,10 @@ public class BiquadFilter {
     public float process(float input) {
         // 差分方程
         float output = b0 * input + b1 * x1 + b2 * x2 - a1 * y1 - a2 * y2;
+
+        // Denormal 保护：防止极小浮点数导致 CPU 性能骤降
+        if (Math.abs(output) < 1e-18f)
+            output = 0f;
 
         // 更新历史状态 (移位)
         x2 = x1;
