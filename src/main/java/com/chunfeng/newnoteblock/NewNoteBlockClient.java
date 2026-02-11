@@ -4,7 +4,7 @@ import com.chunfeng.newnoteblock.audio.engine.NoteBlockAudioEngine;
 import com.chunfeng.newnoteblock.audio.manager.SamplerManager;
 import com.chunfeng.newnoteblock.network.WEPacketHandler; // 确保导入这个
 import com.chunfeng.newnoteblock.network.NotePacketHandler;
-import com.chunfeng.newnoteblock.client.KeyBindings;
+import com.chunfeng.newnoteblock.client.ui.framework.KeyBindings;
 import com.chunfeng.newnoteblock.util.ReplayModCompat;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents; // 导入 ClientTickEvents

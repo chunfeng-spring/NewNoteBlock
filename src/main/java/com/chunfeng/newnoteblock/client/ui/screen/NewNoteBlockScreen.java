@@ -257,6 +257,21 @@ public class NewNoteBlockScreen {
                 ImGui.popFont();
 
             ImGui.sameLine();
+            // [新增] 手持音符盒不打开GUI 切换按钮
+            {
+                boolean current = com.chunfeng.newnoteblock.client.config.ModConfig.get().skipGuiWhenHoldingNoteBlock;
+                String toggleLabel = "手持音符盒不打开GUI：" + (current ? "ON" : "OFF");
+                ImVec2 toggleSize = new ImVec2();
+                ImGui.calcTextSize(toggleSize, toggleLabel);
+                float toggleW = toggleSize.x + 20.0f;
+                float closeBtnW = 100.0f;
+                ImGui.setCursorPosX(windowWidth - closeBtnW - toggleW - ImGui.getStyle().getWindowPaddingX() - 10.0f);
+                if (ImGui.button(toggleLabel, toggleW, titleSize.y * 0.5f)) {
+                    com.chunfeng.newnoteblock.client.config.ModConfig.get().skipGuiWhenHoldingNoteBlock = !current;
+                    com.chunfeng.newnoteblock.client.config.ModConfig.save();
+                }
+            }
+            ImGui.sameLine();
             float btnW = 100.0f;
             ImGui.setCursorPosX(windowWidth - btnW - ImGui.getStyle().getWindowPaddingX());
             if (ImGui.button("关闭", btnW, titleSize.y * 0.5f))

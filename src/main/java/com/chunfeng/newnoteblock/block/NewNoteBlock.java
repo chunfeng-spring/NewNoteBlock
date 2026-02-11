@@ -100,8 +100,9 @@ public class NewNoteBlock {
                 return ActionResult.PASS;
             }
 
-            // [新增] 如果玩家手持新音符盒，不打开 GUI，方便放置方块
-            if (heldItem.isOf(NEWNOTEBLOCK.asItem())) {
+            // [新增] 如果配置了手持新音符盒不打开GUI，则跳过
+            if (com.chunfeng.newnoteblock.client.config.ModConfig.get().skipGuiWhenHoldingNoteBlock
+                    && heldItem.isOf(NEWNOTEBLOCK.asItem())) {
                 return ActionResult.PASS;
             }
 

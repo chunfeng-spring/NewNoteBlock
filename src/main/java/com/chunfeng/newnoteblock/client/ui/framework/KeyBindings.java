@@ -1,4 +1,4 @@
-package com.chunfeng.newnoteblock.client;
+package com.chunfeng.newnoteblock.client.ui.framework;
 
 import net.minecraft.client.option.KeyBinding;
 import net.minecraft.client.util.InputUtil;
