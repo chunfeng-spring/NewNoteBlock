@@ -12,9 +12,6 @@ import imgui.flag.ImGuiStyleVar;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec3d;
-import net.objecthunter.exp4j.Expression;
-import net.objecthunter.exp4j.ExpressionBuilder;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;

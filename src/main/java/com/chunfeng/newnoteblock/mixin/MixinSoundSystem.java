@@ -24,7 +24,9 @@ import java.util.concurrent.CompletableFuture;
 @Mixin(SoundSystem.class)
 public class MixinSoundSystem {
 
-    @Shadow @Final private Map<SoundInstance, Channel.SourceManager> sources;
+    @Shadow
+    @Final
+    private Map<SoundInstance, Channel.SourceManager> sources;
 
     // [上下文] 用于在 play 方法内部传递当前正在处理的 Mod 音效实例
     @Unique
@@ -38,13 +40,7 @@ public class MixinSoundSystem {
      * [旧功能] 解除原本 0.5 ~ 2.0 的音调(Pitch)限制
      * 允许极低或极高的音调播放
      */
-    @Redirect(
-            method = "getAdjustedPitch",
-            at = @At(
-                    value = "INVOKE",
-                    target = "Lnet/minecraft/util/math/MathHelper;clamp(FFF)F"
-            )
-    )
+    @Redirect(method = "getAdjustedPitch", at = @At(value = "INVOKE", target = "Lnet/minecraft/util/math/MathHelper;clamp(FFF)F"))
     private float removePitchClamp(float value, float min, float max) {
         return value; // 直接返回原值，不进行 Clamp 限制
     }
@@ -53,10 +49,10 @@ public class MixinSoundSystem {
      * [旧功能] 修改线性衰减类型的声音传播距离
      * 强制将线性衰减距离改为 48.0F (原本可能较短)
      */
-    @ModifyVariable(
-            method = "play(Lnet/minecraft/client/sound/SoundInstance;)V",
-            at = @At(value = "STORE"),
-            ordinal = 1 // 修改局部变量 g (attenuation distance)
+    @ModifyVariable(method = "play(Lnet/minecraft/client/sound/SoundInstance;)V", at = @At(value = "STORE"), ordinal = 1 // 修改局部变量
+                                                                                                                         // g
+                                                                                                                         // (attenuation
+                                                                                                                         // distance)
     )
     private float modifyAttenuationDistance(float g, SoundInstance soundInstance) {
         if (soundInstance.getAttenuationType() == SoundInstance.AttenuationType.LINEAR) {
@@ -87,13 +83,7 @@ public class MixinSoundSystem {
      * 只有流式声音才会走 loadStreamed 方法，从而被我们的 EQ 处理器拦截。
      * 如果不加这个，短声音会走 loadStatic，导致 EQ 失效。
      */
-    @Redirect(
-            method = "play(Lnet/minecraft/client/sound/SoundInstance;)V",
-            at = @At(
-                    value = "INVOKE",
-                    target = "Lnet/minecraft/client/sound/Sound;isStreamed()Z"
-            )
-    )
+    @Redirect(method = "play(Lnet/minecraft/client/sound/SoundInstance;)V", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/sound/Sound;isStreamed()Z"))
     private boolean forceStreamForModSounds(Sound sound) {
         ClientSoundManager.ModSoundInstance modSound = currentModSound.get();
 
@@ -111,15 +101,11 @@ public class MixinSoundSystem {
      * [步骤 C] 拦截音频流加载 (使用 WrapOperation 解决与其他模组的 Redirect 冲突)。
      * 这里我们获取原始音频流，并将其包裹在 ProcessingAudioStream 中以应用 EQ。
      */
-    @WrapOperation(
-            method = "play(Lnet/minecraft/client/sound/SoundInstance;)V",
-            at = @At(
-                    value = "INVOKE",
-                    // 目标方法名必须是 loadStreamed (对应反编译代码)
-                    target = "Lnet/minecraft/client/sound/SoundLoader;loadStreamed(Lnet/minecraft/util/Identifier;Z)Ljava/util/concurrent/CompletableFuture;"
-            )
-    )
-    private CompletableFuture<AudioStream> wrapLoadStreamed(SoundLoader instance, Identifier id, boolean repeatInstantly, Operation<CompletableFuture<AudioStream>> original) {
+    @WrapOperation(method = "play(Lnet/minecraft/client/sound/SoundInstance;)V", at = @At(value = "INVOKE",
+            // 目标方法名必须是 loadStreamed (对应反编译代码)
+            target = "Lnet/minecraft/client/sound/SoundLoader;loadStreamed(Lnet/minecraft/util/Identifier;Z)Ljava/util/concurrent/CompletableFuture;"))
+    private CompletableFuture<AudioStream> wrapLoadStreamed(SoundLoader instance, Identifier id,
+            boolean repeatInstantly, Operation<CompletableFuture<AudioStream>> original) {
         // 调用原始逻辑 (或其他模组的重定向逻辑) 获取流
         CompletableFuture<AudioStream> originalFuture = original.call(instance, id, repeatInstantly);
 
@@ -169,8 +155,7 @@ public class MixinSoundSystem {
                     NoteBlockAudioEngine.ReverbTask task = new NoteBlockAudioEngine.ReverbTask(
                             sourceId,
                             modSound.reverbParams,
-                            modSound.reverbSend
-                    );
+                            modSound.reverbSend);
                     NoteBlockAudioEngine.processTask(task);
                 });
             }

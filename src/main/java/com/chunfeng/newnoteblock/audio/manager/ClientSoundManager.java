@@ -333,13 +333,20 @@ public class ClientSoundManager {
          * @return 如果声音应该结束返回true
          */
         public boolean tick() {
-            // [修复] 计算结束条件：基于音量曲线和运动路径的最大持续时间
-            boolean volumeEnded = (volumeCurve == null || volumeCurve.isEmpty()) ? true
-                    : currentTick >= volumeCurve.size();
-            boolean motionEnded = (motionPath == null || motionPath.isEmpty()) ? true : currentTick > endTick;
+            boolean hasVolumeCurve = (volumeCurve != null && !volumeCurve.isEmpty());
+            boolean hasMotion = (motionPath != null && !motionPath.isEmpty());
 
-            // 如果两者都结束了，返回 true
-            if (volumeEnded && motionEnded) {
+            // [修复] 结束条件：与 ActiveSoundFader 保持一致
+            boolean finished;
+            if (hasVolumeCurve) {
+                finished = currentTick >= volumeCurve.size();
+            } else if (hasMotion) {
+                finished = currentTick > endTick;
+            } else {
+                finished = true;
+            }
+
+            if (finished) {
                 return true;
             }
 

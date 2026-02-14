@@ -54,12 +54,23 @@ public class ActiveSoundFader {
     }
 
     public boolean tick() {
-        // [修复] 计算结束条件：基于音量曲线和运动路径的最大持续时间
-        boolean volumeEnded = (volumeCurve == null || volumeCurve.isEmpty()) ? true : currentTick >= volumeCurve.size();
-        boolean motionEnded = (motionPath == null || motionPath.isEmpty()) ? true : currentTick > endTick;
+        boolean hasVolumeCurve = (volumeCurve != null && !volumeCurve.isEmpty());
+        boolean hasMotion = (motionPath != null && !motionPath.isEmpty());
 
-        // 如果两者都结束了，返回 true
-        if (volumeEnded && motionEnded) {
+        // [修复] 结束条件：
+        // - 有音量曲线时，以音量曲线长度为声音持续时间（音量曲线结束 = 声音结束）
+        // - 无音量曲线但有运动路径时，以运动路径结束为 Fader 结束
+        // - 都没有时，立即结束
+        boolean finished;
+        if (hasVolumeCurve) {
+            finished = currentTick >= volumeCurve.size();
+        } else if (hasMotion) {
+            finished = currentTick > endTick;
+        } else {
+            finished = true;
+        }
+
+        if (finished) {
             isFinished = true;
             return true;
         }
