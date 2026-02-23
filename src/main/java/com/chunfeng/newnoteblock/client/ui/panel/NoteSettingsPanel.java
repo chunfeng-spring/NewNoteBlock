@@ -71,18 +71,14 @@ public class NoteSettingsPanel {
             ImGui.tableSetColumnIndex(0);
 
             float gap = 20.0f;
-            float inputW = 80.0f;
-            float sliderW = 300.0f;
-            float volInputW = 120.0f; // Width for "Master Volume" input
+            float inputW = 200.0f;
 
             // Calculate total width to center align
-            // Order: Volume Input + gap + Tick Label + Slider + gap + Pitch Range Label +
-            // Input
             String volLabel = "主音量: ";
             ImVec2 labelSizeVol = new ImVec2();
             ImGui.calcTextSize(labelSizeVol, volLabel);
 
-            float totalGroupW = labelSizeVol.x + volInputW + gap + labelSizeTick.x + sliderW + gap + labelSizeRange.x
+            float totalGroupW = labelSizeVol.x + inputW + gap + labelSizeTick.x + inputW + gap + labelSizeRange.x
                     + inputW;
             float startX = ImGui.getCursorPosX() + (cellW - totalGroupW) / 2.0f;
 
@@ -92,10 +88,9 @@ public class NoteSettingsPanel {
             ImGui.alignTextToFramePadding();
             ImGui.text(volLabel);
             ImGui.sameLine();
-            ImGui.pushItemWidth(volInputW);
-            float[] volVal = { data.volume.get() };
-            if (ImGui.dragFloat("##MasterVolume", volVal, 0.01f, 0.0f, 1.0f, "%.2f")) {
-                data.volume.set(Math.max(0.0f, Math.min(1.0f, volVal[0])));
+            ImGui.pushItemWidth(inputW);
+            if (ImGui.inputFloat("##MasterVolume", data.volume, 0.1f, 0.1f, "%.2f")) {
+                data.volume.set(Math.max(0.0f, Math.min(1.0f, data.volume.get())));
                 if (onDataChange != null)
                     onDataChange.run();
             }
@@ -103,28 +98,50 @@ public class NoteSettingsPanel {
 
             ImGui.sameLine(0, gap);
 
-            // 2. Tick Count Slider
+            // 2. Tick Count Input
             ImGui.alignTextToFramePadding();
             ImGui.text(tickLabel);
             ImGui.sameLine();
-            ImGui.pushItemWidth(sliderW);
+            ImGui.pushItemWidth(inputW);
 
-            if (ImGui.sliderInt("##TickCount", data.tickCount.getData(), 0, 100)) {
+            if (ImGui.inputInt("##TickCount", data.tickCount, 1, 10)) {
                 int target = data.tickCount.get();
+                if (target < 0) {
+                    target = 0;
+                    data.tickCount.set(0);
+                }
                 if (target == 0) {
                     data.volumeCurve.clear();
                     data.pitchCurve.clear();
                 } else {
+                    int oldSize = data.volumeCurve.size();
+
+                    // [修复] 先把旧的自动衰减恢复为 100%，避免影响后续扩展
+                    if (oldSize >= 2) {
+                        data.volumeCurve.set(oldSize - 2, 100);
+                        data.volumeCurve.set(oldSize - 1, 100);
+                    } else if (oldSize == 1) {
+                        data.volumeCurve.set(0, 100);
+                    }
+
+                    // 扩展时：新 tick 默认 100%
                     while (data.volumeCurve.size() < target) {
-                        int lastVol = data.volumeCurve.isEmpty() ? 100
-                                : data.volumeCurve.get(data.volumeCurve.size() - 1);
-                        data.volumeCurve.add(lastVol);
+                        data.volumeCurve.add(100);
                         data.pitchCurve.add(0);
                     }
+                    // 缩减时：移除尾部
                     while (data.volumeCurve.size() > target) {
                         data.volumeCurve.remove(data.volumeCurve.size() - 1);
                         if (!data.pitchCurve.isEmpty())
                             data.pitchCurve.remove(data.pitchCurve.size() - 1);
+                    }
+
+                    // [新增] 自动衰减：只修改最后两个 tick
+                    if (target >= 2) {
+                        data.volumeCurve.set(target - 2, 50);
+                        data.volumeCurve.set(target - 1, 0);
+                    } else if (target == 1) {
+                        data.volumeCurve.set(0, 0);
                     }
                 }
                 if (onDataChange != null)
