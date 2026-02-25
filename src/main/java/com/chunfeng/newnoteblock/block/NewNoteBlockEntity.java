@@ -220,9 +220,12 @@ public class NewNoteBlockEntity extends BlockEntity {
         this.motionEndTick = mEnd;
         this.motionMode = mMode;
 
+        // [修复] 防御性拷贝：避免传入的 pathData 与 this.motionPath 是同一个引用导致 clear 后数据丢失
+        List<Vec3d> pathCopy = (pathData != null) ? new ArrayList<>(pathData) : null;
+
         this.motionPath.clear();
-        if (pathData != null) {
-            this.motionPath.addAll(pathData);
+        if (pathCopy != null) {
+            this.motionPath.addAll(pathCopy);
         }
 
         // Update note property in BlockState

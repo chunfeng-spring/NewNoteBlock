@@ -30,7 +30,7 @@ public class WorldEditScreen {
         NoteSettingsPanel.updateInstrumentFromSelection(WorldEditData.noteData);
 
         if (WorldEditData.filterRules.isEmpty() && !WorldEditData.enableTargetEditor.get()
-                && !WorldEditData.enableOtherOps.get()) {
+                && !WorldEditData.enableOtherOps.get() && !WorldEditData.enableMiscOps.get()) {
             WorldEditData.reset();
         }
 
@@ -93,6 +93,16 @@ public class WorldEditScreen {
             if (WorldEditData.enableOtherOps.get()) {
                 ImGui.indent();
                 WorldEditActionPanel.renderOtherOpsSection();
+                ImGui.unindent();
+            }
+
+            ImGui.dummy(0, 10);
+            ImGui.separator();
+
+            ImGui.checkbox("其他操作", WorldEditData.enableMiscOps);
+            if (WorldEditData.enableMiscOps.get()) {
+                ImGui.indent();
+                WorldEditActionPanel.renderMiscOpsSection();
                 ImGui.unindent();
             }
         }
@@ -214,6 +224,11 @@ public class WorldEditScreen {
                     || WorldEditData.shiftMotionYOp.get() != 0); // [New]
             mask.shiftMotionZ = (WorldEditData.shiftMotionZVal.get() != 0.0f
                     || WorldEditData.shiftMotionZOp.get() != 0); // [New]
+        }
+
+        // [新增] 其他操作
+        if (WorldEditData.enableMiscOps.get()) {
+            mask.toggleMotionMode = WorldEditData.miscToggleMotionMode.get();
         }
 
         // 3. 构建 Data (从 WorldEditData.noteData 读取)

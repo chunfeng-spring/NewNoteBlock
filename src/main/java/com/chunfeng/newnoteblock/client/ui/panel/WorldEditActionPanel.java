@@ -109,6 +109,13 @@ public class WorldEditActionPanel {
         ImGui.dummy(0, 5);
     }
 
+    public static void renderMiscOpsSection() {
+        ImGui.textColored(1.0f, 0.8f, 0.2f, 1.0f, "特殊操作：");
+        ImGui.dummy(0, 5);
+        ImGui.checkbox("切换声源坐标模式（相对 ↔ 绝对，保持轨迹不变）", WorldEditData.miscToggleMotionMode);
+        ImGui.dummy(0, 5);
+    }
+
     private static final String[] OPS = { "+", "-", "x", "÷" };
 
     private static void renderOperatorInput(String label, imgui.type.ImInt op, imgui.type.ImFloat val,

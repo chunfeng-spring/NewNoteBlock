@@ -110,6 +110,9 @@ public class WEPacketHandler {
         public boolean shiftMotionZ; // [New]
 
         public boolean updateMasterVolume; // [New]
+
+        // 其他操作
+        public boolean toggleMotionMode; // [新增] 切换声源坐标模式
     }
 
     public static class DataPayload {
@@ -200,6 +203,7 @@ public class WEPacketHandler {
                     mask.shiftMotionY = buf.readBoolean(); // [New]
                     mask.shiftMotionZ = buf.readBoolean(); // [New]
                     mask.updateMasterVolume = buf.readBoolean(); // [New]
+                    mask.toggleMotionMode = buf.readBoolean(); // [新增]
 
                     // 3. Payload
                     DataPayload data = new DataPayload();
@@ -332,6 +336,7 @@ public class WEPacketHandler {
         buf.writeBoolean(mask.shiftMotionY); // [New]
         buf.writeBoolean(mask.shiftMotionZ); // [New]
         buf.writeBoolean(mask.updateMasterVolume); // [New]
+        buf.writeBoolean(mask.toggleMotionMode); // [新增]
 
         // Write Data
         buf.writeString(data.instrument);
@@ -555,6 +560,61 @@ public class WEPacketHandler {
                                 nbt.putIntArray("MotionPathX", xArr);
                                 nbt.putIntArray("MotionPathY", yArr);
                                 nbt.putIntArray("MotionPathZ", zArr);
+                                changed = true;
+                            }
+
+                            // [新增] 切换声源坐标模式（相对 ↔ 绝对）
+                            if (mask.toggleMotionMode) {
+                                boolean currentMode = nbt.contains("MotionMode") ? nbt.getBoolean("MotionMode") : true;
+                                // currentMode: true = 相对, false = 绝对
+                                double cx = pos.getX() + 0.5;
+                                double cy = pos.getY() + 0.5;
+                                double cz = pos.getZ() + 0.5;
+
+                                String oldExpX = nbt.contains("MotionExpX") ? nbt.getString("MotionExpX") : "0";
+                                String oldExpY = nbt.contains("MotionExpY") ? nbt.getString("MotionExpY") : "0";
+                                String oldExpZ = nbt.contains("MotionExpZ") ? nbt.getString("MotionExpZ") : "0";
+
+                                String newExpX, newExpY, newExpZ;
+                                if (currentMode) {
+                                    // 相对 → 绝对: exp + blockCenter
+                                    newExpX = buildOffsetExpression(oldExpX, cx);
+                                    newExpY = buildOffsetExpression(oldExpY, cy);
+                                    newExpZ = buildOffsetExpression(oldExpZ, cz);
+                                } else {
+                                    // 绝对 → 相对: exp - blockCenter
+                                    newExpX = buildOffsetExpression(oldExpX, -cx);
+                                    newExpY = buildOffsetExpression(oldExpY, -cy);
+                                    newExpZ = buildOffsetExpression(oldExpZ, -cz);
+                                }
+
+                                nbt.putString("MotionExpX", newExpX);
+                                nbt.putString("MotionExpY", newExpY);
+                                nbt.putString("MotionExpZ", newExpZ);
+                                nbt.putBoolean("MotionMode", !currentMode);
+
+                                // 重新计算轨迹
+                                try {
+                                    int start = nbt.getInt("MotionStartTick");
+                                    int end = nbt.getInt("MotionEndTick");
+                                    List<Vec3d> newPath = MotionCalculator.calculate(newExpX, newExpY, newExpZ, start,
+                                            end);
+                                    int size = newPath.size();
+                                    int[] xArr = new int[size];
+                                    int[] yArr = new int[size];
+                                    int[] zArr = new int[size];
+                                    for (int i = 0; i < size; i++) {
+                                        Vec3d v = newPath.get(i);
+                                        xArr[i] = (int) (v.x * 1000.0);
+                                        yArr[i] = (int) (v.y * 1000.0);
+                                        zArr[i] = (int) (v.z * 1000.0);
+                                    }
+                                    nbt.putIntArray("MotionPathX", xArr);
+                                    nbt.putIntArray("MotionPathY", yArr);
+                                    nbt.putIntArray("MotionPathZ", zArr);
+                                } catch (Exception e) {
+                                    // 忽略计算错误
+                                }
                                 changed = true;
                             }
 
@@ -786,5 +846,77 @@ public class WEPacketHandler {
                 break;
         }
         return "(" + currentExp + ") " + operator + " " + val;
+    }
+
+    /**
+     * [新增] 构建偏移后的表达式，处理负数格式并尝试化简
+     * 例: buildOffsetExpression("t", 1.5) → "t + 1.5"
+     * 例: buildOffsetExpression("2", -10.5) → 尝试化简为 "-8.5"
+     * 例: buildOffsetExpression("t", -3.5) → "t + (-3.5)"
+     */
+    private static String buildOffsetExpression(String oldExp, double offset) {
+        if (offset == 0.0)
+            return oldExp; // 偏移为0，不变
+
+        String offsetStr = formatNumber(offset);
+
+        // 先构建表达式
+        String raw;
+        if (offset > 0) {
+            raw = "(" + oldExp + ") + " + offsetStr;
+        } else {
+            raw = "(" + oldExp + ") + (" + offsetStr + ")";
+        }
+
+        // 尝试用 exp4j 化简（如果整个表达式不含 t，则可以直接求值）
+        return trySimplifyExpression(raw);
+    }
+
+    /**
+     * [新增] 尝试化简表达式：
+     * - 如果表达式不含变量 t，则直接用 exp4j 求值并返回数值字符串
+     * - 否则保持原样返回
+     */
+    private static String trySimplifyExpression(String expr) {
+        if (expr == null || expr.trim().isEmpty())
+            return "0";
+
+        // 检查是否包含变量 t
+        boolean containsT = false;
+        for (int i = 0; i < expr.length(); i++) {
+            char c = expr.charAt(i);
+            if (c == 't' || c == 'T') {
+                // 确保不是其他单词的一部分 (如 sqrt)
+                boolean prevIsLetter = (i > 0 && Character.isLetter(expr.charAt(i - 1)));
+                boolean nextIsLetter = (i < expr.length() - 1 && Character.isLetter(expr.charAt(i + 1)));
+                if (!prevIsLetter && !nextIsLetter) {
+                    containsT = true;
+                    break;
+                }
+            }
+        }
+
+        if (!containsT) {
+            // 纯常量表达式，可以直接求值
+            try {
+                net.objecthunter.exp4j.Expression exp = new net.objecthunter.exp4j.ExpressionBuilder(expr).build();
+                double result = exp.evaluate();
+                return formatNumber(result);
+            } catch (Exception e) {
+                // 解析失败，返回原始表达式
+            }
+        }
+
+        return expr;
+    }
+
+    /**
+     * [新增] 格式化数字：去掉不必要的小数 (例如 3.0 → "3")
+     */
+    private static String formatNumber(double val) {
+        if (val == (long) val) {
+            return String.valueOf((long) val);
+        }
+        return String.valueOf(val);
     }
 }

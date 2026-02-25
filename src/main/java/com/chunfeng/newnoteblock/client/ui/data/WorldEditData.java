@@ -34,6 +34,10 @@ public class WorldEditData {
     // --- 模块开关 ---
     public static final ImBoolean enableTargetEditor = new ImBoolean(false);
     public static final ImBoolean enableOtherOps = new ImBoolean(false);
+    public static final ImBoolean enableMiscOps = new ImBoolean(false); // [新增] 其他操作模块
+
+    // --- 其他操作 ---
+    public static final ImBoolean miscToggleMotionMode = new ImBoolean(false); // [新增] 切换声源坐标模式
 
     // --- Mask (绝对值) ---
     public static final ImBoolean maskInstrument = new ImBoolean(false);
@@ -108,6 +112,8 @@ public class WorldEditData {
         filterRules.clear();
         enableTargetEditor.set(false);
         enableOtherOps.set(false);
+        enableMiscOps.set(false);
+        miscToggleMotionMode.set(false);
         setAllMasks(false);
         maskMasterVolume.set(false);
 

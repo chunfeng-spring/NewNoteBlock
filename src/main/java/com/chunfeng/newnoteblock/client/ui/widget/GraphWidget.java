@@ -94,8 +94,11 @@ public class GraphWidget {
         float mouseX = ImGui.getMousePosX();
         float mouseY = ImGui.getMousePosY();
 
-        // [修复] 只检测图表画布区域内的鼠标操作，排除滚动条区域
-        boolean isHoveringView = mouseX >= canvasX && mouseX <= canvasX + contentWidth
+        // [修复] 用子窗口的可见区域限制鼠标检测，防止延伸到右侧面板
+        float visibleLeft = ImGui.getWindowPosX();
+        float visibleTop = ImGui.getWindowPosY();
+        float visibleRight = visibleLeft + ImGui.getWindowWidth();
+        boolean isHoveringView = mouseX >= visibleLeft && mouseX <= visibleRight
                 && mouseY >= canvasY && mouseY <= canvasY + contentHeight;
         boolean isMouseDown = ImGui.isMouseDown(0);
 
