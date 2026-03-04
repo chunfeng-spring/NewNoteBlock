@@ -58,21 +58,24 @@ public class ActiveSoundFader {
         boolean hasMotion = (motionPath != null && !motionPath.isEmpty());
 
         // [修复] 结束条件：
-        // - 有音量曲线时，以音量曲线长度为声音持续时间（音量曲线结束 = 声音结束）
-        // - 无音量曲线但有运动路径时，以运动路径结束为 Fader 结束
-        // - 都没有时，立即结束
-        boolean finished;
+        // - 有音量曲线时，以音量曲线长度为声音持续时间（音量曲线最后等于声音结束）
+        // - 无音量曲线但有运动路径时，只负责在运动结束后发送最后一次“回归原点”并默默结束，不发 stopSound
         if (hasVolumeCurve) {
-            finished = currentTick >= volumeCurve.size();
-        } else if (hasMotion) {
-            finished = currentTick > endTick;
+            if (currentTick >= volumeCurve.size()) {
+                isFinished = true;
+                return true;
+            }
         } else {
-            finished = true;
-        }
-
-        if (finished) {
-            isFinished = true;
-            return true;
+            if (hasMotion && currentTick > endTick) {
+                // 最后一帧恢复坐标并结束 Fader 任务，让声音自然播放到完
+                NotePacketHandler.sendUpdateSoundState(uuid, baseVolume, 1.0f, world, pos, originX, originY, originZ);
+                isFinished = true;
+                return true;
+            }
+            if (!hasMotion) {
+                isFinished = true;
+                return true;
+            }
         }
 
         // 1. 计算音量 (如果有音量曲线)
@@ -129,5 +132,10 @@ public class ActiveSoundFader {
 
     public BlockPos getPos() {
         return pos;
+    }
+
+    // [新增] 只有在有音量曲线且曲线播放完毕时，才去强制停止声音
+    public boolean shouldStopSound() {
+        return volumeCurve != null && !volumeCurve.isEmpty() && currentTick >= volumeCurve.size();
     }
 }

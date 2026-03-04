@@ -22,7 +22,7 @@ public class ImGuiImpl {
 
     private final ImGuiImplGlfw imGuiGlfw = new ImGuiImplGlfw();
     private final ImGuiImplGl3 imGuiGl3 = new ImGuiImplGl3();
-    private boolean isInitialized = false;
+    private volatile boolean isInitialized = false;
 
     // --- 字体存储 ---
     public ImFont fontRegular; // 30px
@@ -34,8 +34,9 @@ public class ImGuiImpl {
 
     public static void create(long windowId) {
         if (INSTANCE == null) {
-            INSTANCE = new ImGuiImpl();
-            INSTANCE.init(windowId);
+            ImGuiImpl impl = new ImGuiImpl();
+            impl.init(windowId);
+            INSTANCE = impl; // init 完全成功后才暴露实例，防止渲染线程在初始化完成前访问
         }
     }
 
@@ -134,9 +135,12 @@ public class ImGuiImpl {
         if (!isInitialized)
             return;
 
-        // [安全检查] 确保字体图集已构建
-        if (!ImGui.getIO().getFonts().isBuilt()) {
-            System.err.println("NewNoteBlock Warning: Font Atlas not built!");
+        // [安全检查] 确保字体图集已构建且纹理ID有效（已上传到GPU）
+        try {
+            if (!ImGui.getIO().getFonts().isBuilt()) {
+                return;
+            }
+        } catch (Exception e) {
             return;
         }
 

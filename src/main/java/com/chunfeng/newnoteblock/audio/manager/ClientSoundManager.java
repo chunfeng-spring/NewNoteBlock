@@ -42,7 +42,10 @@ public class ClientSoundManager {
                     ClientSoundFader fader = entry.getValue();
                     boolean finished = fader.tick();
                     if (finished) {
-                        stopSound(entry.getKey());
+                        // [修复] 只有音量曲线播完时才去停掉真实正在发声的音源
+                        if (fader.shouldStopSound()) {
+                            stopSound(entry.getKey());
+                        }
                         iterator.remove();
                     }
                 }
@@ -337,17 +340,19 @@ public class ClientSoundManager {
             boolean hasMotion = (motionPath != null && !motionPath.isEmpty());
 
             // [修复] 结束条件：与 ActiveSoundFader 保持一致
-            boolean finished;
             if (hasVolumeCurve) {
-                finished = currentTick >= volumeCurve.size();
-            } else if (hasMotion) {
-                finished = currentTick > endTick;
+                if (currentTick >= volumeCurve.size()) {
+                    return true;
+                }
             } else {
-                finished = true;
-            }
-
-            if (finished) {
-                return true;
+                if (hasMotion && currentTick > endTick) {
+                    // 最后一帧恢复坐标，由于这是直接提供给 ClientSoundManager 修改本地状态，所以调用 updateSoundState
+                    updateSoundState(uuid, baseVolume, 1.0f, originX, originY, originZ);
+                    return true;
+                }
+                if (!hasMotion) {
+                    return true;
+                }
             }
 
             // 1. 计算音量 (如果有音量曲线)
@@ -391,6 +396,11 @@ public class ClientSoundManager {
 
             currentTick++;
             return false;
+        }
+
+        // [新增] 决定是否在 Fader 结束时掐断声音
+        public boolean shouldStopSound() {
+            return volumeCurve != null && !volumeCurve.isEmpty() && currentTick >= volumeCurve.size();
         }
     }
 }

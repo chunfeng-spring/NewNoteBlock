@@ -22,8 +22,13 @@ public class ServerSoundManager {
             activeSounds.entrySet().removeIf(entry -> {
                 ActiveSoundFader fader = entry.getValue();
                 boolean finished = fader.tick();
-                if (finished)
+
+                // [修复] 只有在应该强制停止时，才发送 stop() 网络包
+                if (finished && fader.shouldStopSound()) {
                     fader.stop();
+                }
+
+                // 无论是否发送 stop()，只要 finished，Fader 的使命就完成了，从 Map 中移除并等待 GC
                 return finished;
             });
         });
