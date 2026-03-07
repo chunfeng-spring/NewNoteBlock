@@ -259,30 +259,46 @@ public class NewNoteBlock {
                 ItemStack itemStack) {
             super.onPlaced(world, pos, state, placer, itemStack);
             if (!world.isClient) {
-                BlockState downState = world.getBlockState(pos.down());
-                String instrument = InstrumentBlockRegistry.getInstrumentFromBlockState(downState);
-
                 BlockEntity be = world.getBlockEntity(pos);
                 if (be instanceof NewNoteBlockEntity noteBe) {
-                    noteBe.updateData(
-                            noteBe.getNote(),
-                            instrument,
-                            noteBe.getVolume(), // [Modified] Pass volume
-                            noteBe.getVolumeCurve(),
-                            noteBe.getPitchCurve(),
-                            noteBe.getPitchRange(),
-                            noteBe.getDelay(),
-                            noteBe.getReverbSend(),
-                            noteBe.getReverbParams(),
-                            noteBe.getEqParams(),
-                            // [修改] 补全运动参数
-                            noteBe.getMotionExpX(),
-                            noteBe.getMotionExpY(),
-                            noteBe.getMotionExpZ(),
-                            noteBe.getMotionStartTick(),
-                            noteBe.getMotionEndTick(),
-                            noteBe.getMotionMode(), // [新增]
-                            noteBe.getMotionPath());
+
+                    // 判断是否为新放置的纯默认音符盒 (非 NBT 拷贝)
+                    boolean isDefault = "harp".equals(noteBe.getInstrument()) &&
+                            noteBe.getNote() == 60 &&
+                            noteBe.getVolume() == 1.0f &&
+                            noteBe.getDelay() == 0 &&
+                            noteBe.getPitchRange() == 2;
+
+                    if (isDefault) {
+                        // 纯天然新放置的方块：读取脚下的方块，让脚下的方块决定自己的音色
+                        BlockState downState = world.getBlockState(pos.down());
+                        String instrument = InstrumentBlockRegistry.getInstrumentFromBlockState(downState);
+
+                        noteBe.updateData(
+                                noteBe.getNote(),
+                                instrument,
+                                noteBe.getVolume(), // [Modified] Pass volume
+                                noteBe.getVolumeCurve(),
+                                noteBe.getPitchCurve(),
+                                noteBe.getPitchRange(),
+                                noteBe.getDelay(),
+                                noteBe.getReverbSend(),
+                                noteBe.getReverbParams(),
+                                noteBe.getEqParams(),
+                                // [修改] 补全运动参数
+                                noteBe.getMotionExpX(),
+                                noteBe.getMotionExpY(),
+                                noteBe.getMotionExpZ(),
+                                noteBe.getMotionStartTick(),
+                                noteBe.getMotionEndTick(),
+                                noteBe.getMotionMode(), // [新增]
+                                noteBe.getMotionPath());
+                    } else {
+                        // 拷贝过来的方块：保留自身的 NBT，反向将下方的方块变成该音色对应的方块
+                        BlockState targetDownState = InstrumentBlockRegistry
+                                .getBlockStateFromInstrument(noteBe.getInstrument());
+                        world.setBlockState(pos.down(), targetDownState, 3);
+                    }
                 }
             }
         }
